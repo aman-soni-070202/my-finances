@@ -14,7 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { exportData, importData } from '../storage/storageService';
+// import { exportData, importData } from '../storage/storageService';
+import { exportData } from '@/storage/sqliteService';
 import { NavigationParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -98,7 +99,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
               await AsyncStorage.clear();
               Alert.alert('Success', 'All data has been cleared. The app will restart.');
               // In a real app, you would reset the navigation stack or restart the app
-              navigation.navigate('Home');
+              navigation.navigate('TabHome');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear data');
               console.error(error);

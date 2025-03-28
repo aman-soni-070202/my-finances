@@ -11,5 +11,5 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
-  ]
+, "drizzle.config.js", "metro.config.js"  ]
 }

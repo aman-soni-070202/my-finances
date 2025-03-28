@@ -12,8 +12,8 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BankAccount, CreditCard, PaymentMethod } from '@/types';
+import { getBankAccounts, getCreditCards } from '@/storage/sqliteService';
 
 type PaymentModeDropdownProps = {
   onSelect: (method: PaymentMethod) => void;
@@ -67,69 +67,19 @@ const PaymentModeDropdown: React.FC<PaymentModeDropdownProps> = ({
     try {
       setLoading(true);
       // Load bank accounts
-      const storedAccounts = await AsyncStorage.getItem('bankAccounts');
+      const storedAccounts = await getBankAccounts();
       if (storedAccounts) {
-        setBankAccounts(JSON.parse(storedAccounts));
+        setBankAccounts(storedAccounts);
       } else {
-        // Set some default accounts for demonstration
-        const defaultAccounts: BankAccount[] = [
-          {
-            id: 'bank-1',
-            name: 'Primary Checking',
-            accountNumber: '1234',
-            bankName: 'HDFC Bank',
-            balance: 25000,
-            type: 'checking'
-          },
-          {
-            id: 'bank-2',
-            name: 'Savings Account',
-            accountNumber: '5678',
-            bankName: 'SBI',
-            balance: 50000,
-            type: 'savings'
-          },
-          {
-            id: 'bank-5',
-            name: 'Mutual Fund Account',
-            accountNumber: '8765',
-            bankName: 'Kotak',
-            balance: 75000,
-            type: 'investment'
-          }
-        ];
-        setBankAccounts(defaultAccounts);
-
-        // Save these accounts to AsyncStorage for future use
-        await AsyncStorage.setItem('bankAccounts', JSON.stringify(defaultAccounts));
+        setBankAccounts([]);
       }
 
       // Load credit cards
-      const storedCards = await AsyncStorage.getItem('creditCards');
+      const storedCards = await getCreditCards();
       if (storedCards) {
-        setCreditCards(JSON.parse(storedCards));
+        setCreditCards(storedCards);
       } else {
-        // Set some default credit cards for demonstration
-        const defaultCards: CreditCard[] = [
-          {
-            id: 'card-1',
-            name: 'HDFC Credit Card',
-            cardNumber: '9012',
-            creditLimit: 100000,
-            creditBalance: 100000
-          },
-          {
-            id: 'card-2',
-            name: 'Amazon Pay Card',
-            cardNumber: '5432',
-            creditLimit: 50000,
-            creditBalance: 50000
-          }
-        ];
-        setCreditCards(defaultCards);
-
-        // Save these cards to AsyncStorage for future use
-        await AsyncStorage.setItem('creditCards', JSON.stringify(defaultCards));
+        setCreditCards([]);
       }
     } catch (error) {
       console.error('Failed to load payment methods:', error);

@@ -11,7 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { deleteTransaction, updateTransaction } from '../storage/storageService';
+// import { deleteTransaction, updateTransaction } from '../storage/storageService';
+import { deleteTransaction } from '@/storage/sqliteService';
 import { NavigationParamList, PaymentMethod, Transaction } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

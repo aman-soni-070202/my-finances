@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { getTransactions } from '../storage/storageService';
+// import { getTransactions } from '../storage/storageService';
+import { getTransactions } from '@/storage/sqliteService';
 import TransactionItem from '../components/TransactionItems';
 import { Transaction, NavigationParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';

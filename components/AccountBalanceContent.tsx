@@ -9,8 +9,9 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { getBankAccounts, getCreditCards } from '@/storage/storageService';
+import { getBankAccounts, getCreditCards } from '@/storage/sqliteService';
 import { BankAccount, CreditCard } from '@/types';
+import { useFocusEffect } from '@react-navigation/native';
 
 type AccountBalanceContentProps = {
   navigation: any; // You can replace 'any' with the proper navigation type
@@ -20,47 +21,76 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalCredit, setTotalCredit] = useState(0);
-  const [showBalances, setShowBalances] = useState(true);
+  const [showBalances, setShowBalances] = useState(false);
 
+  // Initial data load
   useEffect(() => {
-    fetchAccountData();
+    initialFetchAccountData();
   }, []);
 
-  const fetchAccountData = async () => {
+  // This will run when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAccountData();
+      return () => {
+        // Optional cleanup if needed
+      };
+    }, [])
+  );
+
+  // Initial loading with full loading indicator
+  const initialFetchAccountData = async () => {
     try {
       setIsLoading(true);
-      
-      // Fetch bank accounts from AsyncStorage
-      const storedBankAccounts = await getBankAccounts();
-      const parsedBankAccounts = storedBankAccounts ? JSON.parse(storedBankAccounts) : [];
-      
-      // Fetch credit cards from AsyncStorage
-      const storedCreditCards = await getCreditCards();
-      const parsedCreditCards = storedCreditCards ? JSON.parse(storedCreditCards) : [];
-      
-      setBankAccounts(parsedBankAccounts);
-      setCreditCards(parsedCreditCards);
-      
-      // Calculate totals
-      const bankTotal = parsedBankAccounts.reduce(
-        (sum: number, account: BankAccount) => sum + account.balance, 
-        0
-      );
-      
-      const creditTotal = parsedCreditCards.reduce(
-        (sum: number, card: CreditCard) => sum + card.creditBalance, 
-        0
-      );
-      
-      setTotalBalance(bankTotal);
-      setTotalCredit(creditTotal);
+      await loadAccountData();
     } catch (error) {
       console.error('Error fetching account data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Refresh data without showing full loading screen
+  const refreshAccountData = async () => {
+    try {
+      setIsRefreshing(true);
+      await loadAccountData();
+    } catch (error) {
+      console.error('Error refreshing account data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Core data loading logic, separated for reuse
+  const loadAccountData = async () => {
+    // Fetch bank accounts from AsyncStorage
+    const storedBankAccounts = await getBankAccounts();
+    // const parsedBankAccounts = storedBankAccounts ? JSON.parse(storedBankAccounts) : [];
+    
+    // Fetch credit cards from AsyncStorage
+    const storedCreditCards = await getCreditCards();
+    // const parsedCreditCards = storedCreditCards ? JSON.parse(storedCreditCards) : [];
+    
+    setBankAccounts(storedBankAccounts);
+    setCreditCards(storedCreditCards);
+    
+    // Calculate totals
+    const bankTotal = storedBankAccounts.reduce(
+      (sum: number, account: BankAccount) => sum + account.balance, 
+      0
+    );
+    
+    const creditTotal = storedCreditCards.reduce(
+      (sum: number, card: CreditCard) => sum + card.creditBalance, 
+      0
+    );
+    
+    setTotalBalance(bankTotal);
+    setTotalCredit(creditTotal);
   };
 
   const toggleBalances = () => {
@@ -96,15 +126,27 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
       <View style={styles.summaryContainer}>
         <View style={[styles.summaryItem, {marginLeft: 15}]}>
           <Text style={styles.summaryLabel}>Total Balance</Text>
-          <Text style={styles.summaryValue}>
-            {showBalances ? formatCurrency(totalBalance) : '••••••'}
-          </Text>
+          <View style={styles.valueContainer}>
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.summaryValue}>
+                {showBalances ? formatCurrency(totalBalance) : '••••••'}
+              </Text>
+            )}
+          </View>
         </View>
         <View style={[styles.summaryItem, {marginLeft: 15, marginRight: 15}]}>
           <Text style={styles.summaryLabel}>Available Credit</Text>
-          <Text style={styles.summaryValue}>
-            {showBalances ? formatCurrency(totalCredit) : '••••••'}
-          </Text>
+          <View style={styles.valueContainer}>
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.summaryValue}>
+                {showBalances ? formatCurrency(totalCredit) : '••••••'}
+              </Text>
+            )}
+          </View>
         </View>
       </View>
       
@@ -127,11 +169,15 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
                 </View>
                 <View style={styles.balanceContainer}>
                   <Text style={styles.balanceLabel}>Balance</Text>
-                  <Text style={styles.balanceAmount}>
-                    {showBalances 
-                      ? formatCurrency(account.balance || 0)
-                      : '••••••'}
-                  </Text>
+                  {isRefreshing ? (
+                    <ActivityIndicator size="small" color="#0066cc" />
+                  ) : (
+                    <Text style={styles.balanceAmount}>
+                      {showBalances 
+                        ? formatCurrency(account.balance || 0)
+                        : '••••••'}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -156,11 +202,15 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
                 </View>
                 <View style={styles.balanceContainer}>
                   <Text style={styles.balanceLabel}>Limit</Text>
-                  <Text style={styles.balanceAmount}>
-                    {showBalances 
-                      ? formatCurrency(card.creditBalance || 0)
-                      : '••••••'}
-                  </Text>
+                  {isRefreshing ? (
+                    <ActivityIndicator size="small" color="#9c27b0" />
+                  ) : (
+                    <Text style={styles.balanceAmount}>
+                      {showBalances 
+                        ? formatCurrency(card.creditBalance || 0)
+                        : '••••••'}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -202,7 +252,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 6,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#eeeeee',
@@ -236,6 +286,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     opacity: 0.8,
     marginBottom: 5,
+  },
+  valueContainer: {
+    height: 24, // Fixed height to prevent layout shift
   },
   summaryValue: {
     fontSize: 20,
@@ -291,6 +344,7 @@ const styles = StyleSheet.create({
   balanceContainer: {
     justifyContent: 'center',
     alignItems: 'flex-end',
+    minWidth: 80, // Ensure consistent width for the balance area
   },
   balanceLabel: {
     fontSize: 12,

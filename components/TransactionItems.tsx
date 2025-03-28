@@ -1,4 +1,3 @@
-// components/TransactionItem.tsx
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,21 +17,21 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onPress 
   });
 
   // Get icon based on category
-  const getCategoryIcon = (category: string): string => {
-    const iconMap: Record<string, string> = {
-      Food: 'fast-food',
-      Transport: 'car',
-      Entertainment: 'film',
-      Bills: 'receipt',
-      Shopping: 'cart',
-      Salary: 'cash',
-      Investments: 'trending-up',
-      'Side Hustle': 'briefcase',
-      Gifts: 'gift',
-      Other: 'ellipsis-horizontal'
+  const getCategoryIcon = (category: string) => {
+    const iconMap: Record<string, any> = {
+      Food: 'fast-food' as const,
+      Transport: 'car' as const,
+      Entertainment: 'film' as const,
+      Bills: 'receipt' as const,
+      Shopping: 'cart' as const,
+      Salary: 'cash' as const,
+      Investments: 'trending-up' as const,
+      'Side Hustle': 'briefcase' as const,
+      Gifts: 'gift' as const,
+      Other: 'ellipsis-horizontal' as const
     };
 
-    return iconMap[category] || 'ellipsis-horizontal';
+    return iconMap[category] || ('ellipsis-horizontal' as const);
   };
 
   return (

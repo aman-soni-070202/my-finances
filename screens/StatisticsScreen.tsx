@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { getYearlyStats, getMonthlyStats, getCategories, getTransactions } from '../storage/storageService';
+// import { getYearlyStats, getMonthlyStats, getCategories, getTransactions } from '../storage/storageService';
+import { getYearlyStats, getMonthlyStats } from '@/storage/sqliteService';
 import { NavigationParamList, Transaction, MonthData } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

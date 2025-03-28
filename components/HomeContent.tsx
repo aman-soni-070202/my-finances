@@ -1,18 +1,18 @@
 // components/HomeContent.tsx
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
   ListRenderItemInfo
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { getTransactions, getMonthlyStats } from '../storage/storageService';
+import { getMonthlyStats } from '@/storage/sqliteService';
 import TransactionItem from '../components/TransactionItems';
 import { Transaction, NavigationParamList, TabParamList } from '../types';
 
@@ -33,6 +33,7 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
     balance: 0
   });
   const [loading, setLoading] = useState(true);
+  const [showSavings, setShowSavings] = useState(false);
 
   // Get current month and year
   const currentDate = new Date();
@@ -51,6 +52,10 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
     setLoading(false);
   };
 
+  const toggleBalances = () => {
+    setShowSavings(!showSavings);
+  };
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadData();
@@ -61,13 +66,13 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
 
   const renderItem = ({ item }: ListRenderItemInfo<Transaction>) => (
     <View style={styles.transactionItemContainer}>
-      <TransactionItem 
-        transaction={item} 
+      <TransactionItem
+        transaction={item}
         onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
       />
     </View>
   );
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -76,24 +81,40 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
           <Ionicons name="settings-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.summaryContainer}>
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Current Balance</Text>
-          <Text style={styles.balanceAmount}>₹{stats.balance.toFixed(2)}</Text>
           <View style={styles.incomeExpenseRow}>
-            <View style={styles.incomeContainer}>
-              <Text style={styles.incomeExpenseLabel}>Income</Text>
-              <Text style={styles.incomeAmount}>₹{stats.income.toFixed(2)}</Text>
-            </View>
             <View style={styles.expenseContainer}>
               <Text style={styles.incomeExpenseLabel}>Expense</Text>
               <Text style={styles.expenseAmount}>₹{stats.expense.toFixed(2)}</Text>
             </View>
+            <View style={styles.incomeContainer}>
+              <Text style={styles.incomeExpenseLabel}>Income</Text>
+              <Text style={styles.incomeAmount}>₹{stats.income.toFixed(2)}</Text>
+            </View>
           </View>
         </View>
+        <View style={styles.savingsContainerWrapper}>
+          <View style={styles.savingsContainer}>
+            <Text style={styles.savingsLabel}>Savings</Text>
+            <Text style={[styles.savingsAmount, { color: (stats.income - stats.expense) < 0 ? '#e74c3c' : ((stats.income - stats.expense) == 0) ? '#333' : '#2ecc71' }]}>
+              {showSavings
+                ? `₹${(stats.income - stats.expense).toFixed(2)}`
+                : '••••••'}
+            </Text>
+          </View>
+          <View style={{flex: 1}} />
+          <TouchableOpacity onPress={toggleBalances} style={styles.visibilityButton}>
+            <MaterialIcons
+              name={showSavings ? "visibility" : "visibility-off"}
+              size={24}
+              color="#0066cc"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-      
+
       <View style={styles.transactionsContainer}>
         <View style={styles.transactionsHeader}>
           <Text style={styles.transactionsTitle}>Recent Transactions</Text>
@@ -101,15 +122,15 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
         </View>
-        
+
         {transactions.length > 0 ? (
-            <FlatList
-              data={transactions.slice(0, 5)}
-              renderItem={renderItem}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.transactionsList}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-            />
+          <FlatList
+            data={transactions.slice(0, 5)}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.transactionsList}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No transactions yet</Text>
@@ -117,15 +138,15 @@ const HomeContent: React.FC<HomeContentProps> = ({ navigation }) => {
           </View>
         )}
       </View>
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={styles.addButton}
         onPress={() => navigation.navigate('AddTransaction')}
       >
         <Ionicons name="add" size={28} color="#FFF" />
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.statsButton}
         onPress={() => navigation.navigate('Statistics')}
       >
@@ -140,13 +161,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  visibilityButton: {
+    padding: 10,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
   },
   headerTitle: {
     fontSize: 20,
@@ -155,7 +184,26 @@ const styles = StyleSheet.create({
   },
   summaryContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingVertical: 10,
+  },
+  savingsContainerWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 5,
+  },
+  savingsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
   },
   balanceCard: {
     backgroundColor: '#fff',
@@ -167,16 +215,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  balanceLabel: {
+  savingsLabel: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
-  },
-  balanceAmount: {
-    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    marginRight: 10,
+  },
+  savingsAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   incomeExpenseRow: {
     flexDirection: 'row',
@@ -184,23 +231,24 @@ const styles = StyleSheet.create({
   },
   incomeContainer: {
     flex: 1,
+    alignItems: 'flex-end',
   },
   expenseContainer: {
     flex: 1,
-    alignItems: 'flex-end',
   },
   incomeExpenseLabel: {
-    fontSize: 12,
+    fontSize: 20,
+    fontWeight: '600',
     color: '#666',
     marginBottom: 4,
   },
   incomeAmount: {
-    fontSize: 16,
+    fontSize: 25,
     fontWeight: '600',
     color: '#2ecc71',
   },
   expenseAmount: {
-    fontSize: 16,
+    fontSize: 25,
     fontWeight: '600',
     color: '#e74c3c',
   },

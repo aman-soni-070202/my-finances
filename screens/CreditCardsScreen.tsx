@@ -16,7 +16,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { NavigationParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CreditCard } from '../types';
-import { saveCreditCards, getCreditCards } from '@/storage/storageService';
+// import { saveCreditCards, getCreditCards } from '@/storage/storageService';
+import { saveCreditCards, getCreditCards } from '@/storage/sqliteService';
 
 type CreditCardsScreenProps = {
   navigation: StackNavigationProp<NavigationParamList, 'CreditCards'>;
@@ -26,10 +27,12 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newCard, setNewCard] = useState<Partial<CreditCard>>({
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentCard, setCurrentCard] = useState<Partial<CreditCard>>({
     name: '',
     cardNumber: '',
     creditLimit: 0,
+    creditBalance: 0
   });
 
   useEffect(() => {
@@ -41,7 +44,7 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
       setLoading(true);
       const storedCards = await getCreditCards();
       if (storedCards) {
-        setCards(JSON.parse(storedCards));
+        setCards(storedCards);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load credit cards');
@@ -52,27 +55,43 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
   };
 
   const handleAddCard = async () => {
-    if (!newCard.name || !newCard.cardNumber) {
+    if (!currentCard.name || !currentCard.cardNumber) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    const cardToAdd: CreditCard = {
-      id: Date.now().toString(),
-      name: newCard.name || '',
-      cardNumber: newCard.cardNumber || '',
-      creditLimit: newCard.creditLimit || 0,
-      creditBalance: newCard.creditBalance || 0
-    };
+    if (isEditing && currentCard.id) {
+      // Update existing card
+      const updatedCards = cards.map(card => 
+        card.id === currentCard.id ? currentCard as CreditCard : card
+      );
+      
+      const saved = await saveCreditCards(updatedCards);
+      if (saved) {
+        setCards(updatedCards);
+        setModalVisible(false);
+        resetCardForm();
+        Alert.alert('Success', 'Credit card updated successfully');
+      }
+    } else {
+      // Add new card
+      const cardToAdd: CreditCard = {
+        id: Date.now().toString(),
+        name: currentCard.name || '',
+        cardNumber: currentCard.cardNumber || '',
+        creditLimit: currentCard.creditLimit || 0,
+        creditBalance: currentCard.creditBalance || 0
+      };
 
-    const updatedCards = [...cards, cardToAdd];
-    const saved = await saveCreditCards(updatedCards);
-    
-    if (saved) {
-      setCards(updatedCards);
-      setModalVisible(false);
-      resetNewCardForm();
-      Alert.alert('Success', 'Credit Card added successfully');
+      const updatedCards = [...cards, cardToAdd];
+      const saved = await saveCreditCards(updatedCards);
+      
+      if (saved) {
+        setCards(updatedCards);
+        setModalVisible(false);
+        resetCardForm();
+        Alert.alert('Success', 'Credit Card added successfully');
+      }
     }
   };
 
@@ -101,43 +120,65 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
     );
   };
 
-  const resetNewCardForm = () => {
-    setNewCard({
+  const resetCardForm = () => {
+    setCurrentCard({
       name: '',
       cardNumber: '',
       creditLimit: 0,
+      creditBalance: 0
     });
+    setIsEditing(false);
+  };
+
+  const openAddCardModal = () => {
+    resetCardForm();
+    setIsEditing(false);
+    setModalVisible(true);
+  };
+
+  const openEditCardModal = (card: CreditCard) => {
+    setCurrentCard(card);
+    setIsEditing(true);
+    setModalVisible(true);
   };
 
   const renderCardItem = ({ item }: { item: CreditCard }) => {
     return (
-      <View style={styles.cardCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardIcon}>
-            <Ionicons name='card-outline' size={24} color="#3498db" />
+      <TouchableOpacity onPress={() => openEditCardModal(item)}>
+        <View style={styles.cardCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardIcon}>
+              <Ionicons name='card-outline' size={24} color="#3498db" />
+            </View>
+            <View style={styles.cardInfo}>
+              <Text style={styles.cardName}>{item.name}</Text>
+              <Text style={styles.cardNumber}>•••• {item.cardNumber.slice(-4)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteCard(item.id)}
+            >
+              <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardNumber}>•••• {item.cardNumber.slice(-4)}</Text>
+          <View style={styles.cardDetails}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Card</Text>
+              <Text style={styles.detailValue}>{item.name}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Credit Limit</Text>
+              <Text style={styles.creditLimitValue}>₹{item.creditLimit.toFixed(2)}</Text>
+            </View>
+            {item.creditBalance ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Credit Balance</Text>
+                <Text style={styles.creditLimitValue}>₹{item.creditBalance.toFixed(2)}</Text>
+              </View>
+            ) : null}
           </View>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteCard(item.id)}
-          >
-            <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-          </TouchableOpacity>
         </View>
-        <View style={styles.cardDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Card</Text>
-            <Text style={styles.detailValue}>{item.name}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Credit Limit</Text>
-            <Text style={styles.creditLimitValue}>₹{item.creditLimit.toFixed(2)}</Text>
-          </View>
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -149,7 +190,7 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Credit Cards</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity onPress={openAddCardModal}>
             <Ionicons name="add-circle" size={24} color="#3498db" />
           </TouchableOpacity>
         </View>
@@ -164,7 +205,7 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
             <Text style={styles.emptyText}>No credit cards added yet</Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => setModalVisible(true)}
+              onPress={openAddCardModal}
             >
               <Text style={styles.addButtonText}>Add Your First Card</Text>
             </TouchableOpacity>
@@ -184,17 +225,19 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
           visible={modalVisible}
           onRequestClose={() => {
             setModalVisible(false);
-            resetNewCardForm();
+            resetCardForm();
           }}
         >
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Credit Card</Text>
+                <Text style={styles.modalTitle}>
+                  {isEditing ? 'Edit Credit Card' : 'Add Credit Card'}
+                </Text>
                 <TouchableOpacity
                   onPress={() => {
                     setModalVisible(false);
-                    resetNewCardForm();
+                    resetCardForm();
                   }}
                 >
                   <Ionicons name="close" size={24} color="#333" />
@@ -206,18 +249,18 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
                 <TextInput
                   style={styles.input}
                   placeholder="e.g., HDFC"
-                  value={newCard.name}
-                  onChangeText={(text) => setNewCard({ ...newCard, name: text })}
+                  value={currentCard.name}
+                  onChangeText={(text) => setCurrentCard({ ...currentCard, name: text })}
                 />
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Cards Number</Text>
+                <Text style={styles.inputLabel}>Card Number</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Enter last 4 digits"
-                  value={newCard.cardNumber}
-                  onChangeText={(text) => setNewCard({ ...newCard, cardNumber: text })}
+                  value={currentCard.cardNumber}
+                  onChangeText={(text) => setCurrentCard({ ...currentCard, cardNumber: text })}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
@@ -228,8 +271,8 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
                 <TextInput
                   style={styles.input}
                   placeholder="0.00"
-                  value={newCard.creditLimit?.toString() || ""}
-                  onChangeText={(text) => setNewCard({ ...newCard, creditLimit: parseFloat(text) || 0 })}
+                  value={currentCard.creditLimit?.toString() || ""}
+                  onChangeText={(text) => setCurrentCard({ ...currentCard, creditLimit: parseFloat(text) || 0 })}
                   keyboardType="numeric"
                 />
               </View>
@@ -239,8 +282,8 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
                 <TextInput
                   style={styles.input}
                   placeholder="0.00"
-                  value={newCard.creditBalance?.toString() || ""}
-                  onChangeText={(text) => setNewCard({ ...newCard, creditBalance: parseFloat(text) || 0 })}
+                  value={currentCard.creditBalance?.toString() || ""}
+                  onChangeText={(text) => setCurrentCard({ ...currentCard, creditBalance: parseFloat(text) || 0 })}
                   keyboardType="numeric"
                 />
               </View>
@@ -249,7 +292,9 @@ const CreditCardsScreen: React.FC<CreditCardsScreenProps> = ({ navigation }) => 
                 style={styles.saveButton}
                 onPress={handleAddCard}
               >
-                <Text style={styles.saveButtonText}>Save Card</Text>
+                <Text style={styles.saveButtonText}>
+                  {isEditing ? 'Update Card' : 'Save Card'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -405,7 +450,8 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 15,
-  }, inputLabel: {
+  }, 
+  inputLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#333',

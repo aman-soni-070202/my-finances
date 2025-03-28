@@ -16,7 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { NavigationParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BankAccount } from '../types';
-import { saveBankAccounts, getBankAccounts } from '@/storage/storageService';
+import { saveBankAccounts, getBankAccounts } from '@/storage/sqliteService';
 
 type BankAccountsScreenProps = {
   navigation: StackNavigationProp<NavigationParamList, 'BankAccounts'>;
@@ -26,7 +26,8 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [newAccount, setNewAccount] = useState<Partial<BankAccount>>({
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState<Partial<BankAccount>>({
     name: '',
     accountNumber: '',
     bankName: '',
@@ -43,7 +44,7 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
       setLoading(true);
       const storedAccounts = await getBankAccounts();
       if (storedAccounts) {
-        setAccounts(JSON.parse(storedAccounts));
+        setAccounts(storedAccounts);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load bank accounts');
@@ -54,28 +55,44 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
   };
 
   const handleAddAccount = async () => {
-    if (!newAccount.name || !newAccount.accountNumber || !newAccount.bankName) {
+    if (!currentAccount.name || !currentAccount.accountNumber || !currentAccount.bankName) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    const accountToAdd: BankAccount = {
-      id: Date.now().toString(),
-      name: newAccount.name || '',
-      accountNumber: newAccount.accountNumber || '',
-      bankName: newAccount.bankName || '',
-      balance: newAccount.balance || 0,
-      type: newAccount.type || 'checking'
-    };
+    if (isEditing && currentAccount.id) {
+      // Update existing account
+      const updatedAccounts = accounts.map(account => 
+        account.id === currentAccount.id ? currentAccount as BankAccount : account
+      );
+      
+      const saved = await saveBankAccounts(updatedAccounts);
+      if (saved) {
+        setAccounts(updatedAccounts);
+        setModalVisible(false);
+        resetAccountForm();
+        Alert.alert('Success', 'Bank account updated successfully');
+      }
+    } else {
+      // Add new account
+      const accountToAdd: BankAccount = {
+        id: Date.now().toString(),
+        name: currentAccount.name || '',
+        accountNumber: currentAccount.accountNumber || '',
+        bankName: currentAccount.bankName || '',
+        balance: currentAccount.balance || 0,
+        type: currentAccount.type || 'checking'
+      };
 
-    const updatedAccounts = [...accounts, accountToAdd];
-    const saved = await saveBankAccounts(updatedAccounts);
-    
-    if (saved) {
-      setAccounts(updatedAccounts);
-      setModalVisible(false);
-      resetNewAccountForm();
-      Alert.alert('Success', 'Bank account added successfully');
+      const updatedAccounts = [...accounts, accountToAdd];
+      const saved = await saveBankAccounts(updatedAccounts);
+
+      if (saved) {
+        setAccounts(updatedAccounts);
+        setModalVisible(false);
+        resetAccountForm();
+        Alert.alert('Success', 'Bank account added successfully');
+      }
     }
   };
 
@@ -104,14 +121,27 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
     );
   };
 
-  const resetNewAccountForm = () => {
-    setNewAccount({
+  const resetAccountForm = () => {
+    setCurrentAccount({
       name: '',
       accountNumber: '',
       bankName: '',
       balance: 0,
       type: 'checking'
     });
+    setIsEditing(false);
+  };
+
+  const openAddAccountModal = () => {
+    resetAccountForm();
+    setIsEditing(false);
+    setModalVisible(true);
+  };
+
+  const openEditAccountModal = (account: BankAccount) => {
+    setCurrentAccount(account);
+    setIsEditing(true);
+    setModalVisible(true);
   };
 
   const renderAccountItem = ({ item }: { item: BankAccount }) => {
@@ -126,37 +156,39 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
     };
 
     return (
-      <View style={styles.accountCard}>
-        <View style={styles.accountHeader}>
-          <View style={styles.accountIcon}>
-            <Ionicons name={getIconName(item.type)} size={24} color="#3498db" />
+      <TouchableOpacity onPress={() => openEditAccountModal(item)}>
+        <View style={styles.accountCard}>
+          <View style={styles.accountHeader}>
+            <View style={styles.accountIcon}>
+              <Ionicons name={getIconName(item.type)} size={24} color="#3498db" />
+            </View>
+            <View style={styles.accountInfo}>
+              <Text style={styles.accountName}>{item.name}</Text>
+              <Text style={styles.accountNumber}>•••• {item.accountNumber.slice(-4)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteAccount(item.id)}
+            >
+              <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.accountInfo}>
-            <Text style={styles.accountName}>{item.name}</Text>
-            <Text style={styles.accountNumber}>•••• {item.accountNumber.slice(-4)}</Text>
+          <View style={styles.accountDetails}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Bank</Text>
+              <Text style={styles.detailValue}>{item.bankName}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Type</Text>
+              <Text style={styles.detailValue}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Balance</Text>
+              <Text style={styles.balanceValue}>₹{item.balance.toFixed(2)}</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteAccount(item.id)}
-          >
-            <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-          </TouchableOpacity>
         </View>
-        <View style={styles.accountDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Bank</Text>
-            <Text style={styles.detailValue}>{item.bankName}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Type</Text>
-            <Text style={styles.detailValue}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Balance</Text>
-            <Text style={styles.balanceValue}>₹{item.balance.toFixed(2)}</Text>
-          </View>
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -168,7 +200,7 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Bank Accounts</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity onPress={openAddAccountModal}>
             <Ionicons name="add-circle" size={24} color="#3498db" />
           </TouchableOpacity>
         </View>
@@ -183,7 +215,7 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
             <Text style={styles.emptyText}>No bank accounts added yet</Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => setModalVisible(true)}
+              onPress={openAddAccountModal}
             >
               <Text style={styles.addButtonText}>Add Your First Account</Text>
             </TouchableOpacity>
@@ -203,17 +235,19 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
           visible={modalVisible}
           onRequestClose={() => {
             setModalVisible(false);
-            resetNewAccountForm();
+            resetAccountForm();
           }}
         >
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Bank Account</Text>
+                <Text style={styles.modalTitle}>
+                  {isEditing ? 'Edit Bank Account' : 'Add Bank Account'}
+                </Text>
                 <TouchableOpacity
                   onPress={() => {
                     setModalVisible(false);
-                    resetNewAccountForm();
+                    resetAccountForm();
                   }}
                 >
                   <Ionicons name="close" size={24} color="#333" />
@@ -225,8 +259,8 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                 <TextInput
                   style={styles.input}
                   placeholder="e.g., Primary Checking"
-                  value={newAccount.name}
-                  onChangeText={(text) => setNewAccount({ ...newAccount, name: text })}
+                  value={currentAccount.name}
+                  onChangeText={(text) => setCurrentAccount({ ...currentAccount, name: text })}
                 />
               </View>
 
@@ -235,8 +269,8 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                 <TextInput
                   style={styles.input}
                   placeholder="e.g., Chase Bank"
-                  value={newAccount.bankName}
-                  onChangeText={(text) => setNewAccount({ ...newAccount, bankName: text })}
+                  value={currentAccount.bankName}
+                  onChangeText={(text) => setCurrentAccount({ ...currentAccount, bankName: text })}
                 />
               </View>
 
@@ -245,8 +279,8 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                 <TextInput
                   style={styles.input}
                   placeholder="Enter last 4 digits"
-                  value={newAccount.accountNumber}
-                  onChangeText={(text) => setNewAccount({ ...newAccount, accountNumber: text })}
+                  value={currentAccount.accountNumber}
+                  onChangeText={(text) => setCurrentAccount({ ...currentAccount, accountNumber: text })}
                   keyboardType="number-pad"
                   maxLength={4}
                 />
@@ -257,8 +291,8 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                 <TextInput
                   style={styles.input}
                   placeholder="0.00"
-                  value={newAccount.balance?.toString() || ""}
-                  onChangeText={(text) => setNewAccount({ ...newAccount, balance: parseFloat(text) || 0 })}
+                  value={currentAccount.balance?.toString() || ""}
+                  onChangeText={(text) => setCurrentAccount({ ...currentAccount, balance: parseFloat(text) || 0 })}
                   keyboardType="numeric"
                 />
               </View>
@@ -271,14 +305,14 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                       key={type}
                       style={[
                         styles.typeButton,
-                        newAccount.type === type && styles.selectedTypeButton
+                        currentAccount.type === type && styles.selectedTypeButton
                       ]}
-                      onPress={() => setNewAccount({ ...newAccount, type: type as BankAccount['type'] })}
+                      onPress={() => setCurrentAccount({ ...currentAccount, type: type as BankAccount['type'] })}
                     >
                       <Text
                         style={[
                           styles.typeButtonText,
-                          newAccount.type === type && styles.selectedTypeButtonText
+                          currentAccount.type === type && styles.selectedTypeButtonText
                         ]}
                       >
                         {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -292,7 +326,9 @@ const BankAccountsScreen: React.FC<BankAccountsScreenProps> = ({ navigation }) =
                 style={styles.saveButton}
                 onPress={handleAddAccount}
               >
-                <Text style={styles.saveButtonText}>Save Account</Text>
+                <Text style={styles.saveButtonText}>
+                  {isEditing ? 'Update Account' : 'Save Account'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -448,7 +484,8 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 15,
-  }, inputLabel: {
+  }, 
+  inputLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#333',

@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { addTransaction, getCategories } from '../storage/storageService';
+// import { addTransaction, getCategories } from '../storage/storageService';
+import { addTransaction, getCategories } from '@/storage/sqliteService';
 import { Categories, NavigationParamList, PaymentMethod } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PaymentModeDropdown from '../components/PaymentModeDropdown';

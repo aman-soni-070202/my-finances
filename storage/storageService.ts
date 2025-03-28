@@ -6,6 +6,8 @@ import { Alert } from 'react-native';
 // Keys for our storage
 const TRANSACTIONS_KEY = 'finance_transactions';
 const CATEGORIES_KEY = 'finance_categories';
+const BANK_ACCOUNTS_KEY = 'bankAccounts';
+const CREDIT_CARDS_KEY = 'creditCards';
 
 // Default categories to start with
 const defaultCategories: Categories = {
@@ -58,6 +60,16 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
     const updatedTransactions = [newTransaction, ...transactions];
 
     await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTransactions));
+
+    const paymentMethod = transaction.paymentMethod;
+
+    if (paymentMethod.isCard) {
+      updateCreditCardBalance(paymentMethod.id, transaction.amount * ((transaction.type == 'income') ? 1 : -1));
+    }
+    else {
+      updateBankAccountBalance(paymentMethod.id, transaction.amount * ((transaction.type == 'income') ? 1 : -1));
+    }
+
     return newTransaction;
   } catch (error) {
     console.error('Error adding transaction:', error);
@@ -72,8 +84,20 @@ export const updateTransaction = async (id: string, updatedData: Partial<Transac
     const index = transactions.findIndex(t => t.id === id);
 
     if (index !== -1) {
+      const balanceToUpdate = (updatedData.amount != undefined) ? updatedData.amount : 0 - transactions[index].amount;
       transactions[index] = { ...transactions[index], ...updatedData };
       await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+
+      const paymentMethod = updatedData.paymentMethod;
+      if (paymentMethod) {
+        if (paymentMethod.isCard) {
+          updateCreditCardBalance(paymentMethod.id, balanceToUpdate * ((updatedData.type == 'income') ? 1 : -1))
+        }
+        else {
+          updateBankAccountBalance(paymentMethod.id, balanceToUpdate * ((updatedData.type == 'income') ? 1 : -1))
+        }
+      }
+
       return transactions[index];
     }
     return null;
@@ -125,10 +149,9 @@ export const addCategory = async (type: 'income' | 'expense', categoryName: stri
   }
 };
 
-
 export const saveBankAccounts = async (updatedAccounts: BankAccount[]) => {
   try {
-    await AsyncStorage.setItem('bankAccounts', JSON.stringify(updatedAccounts));
+    await AsyncStorage.setItem(BANK_ACCOUNTS_KEY, JSON.stringify(updatedAccounts));
   } catch (error) {
     Alert.alert('Error', 'Failed to save bank accounts');
     console.error(error);
@@ -137,14 +160,47 @@ export const saveBankAccounts = async (updatedAccounts: BankAccount[]) => {
   return true;
 };
 
+export const updateBankAccountBalance = async (
+  accountId: string,
+  balanceAdjustment: number
+): Promise<boolean> => {
+  try {
+    const accountsJson = await AsyncStorage.getItem(BANK_ACCOUNTS_KEY);
+
+    if (!accountsJson) {
+      Alert.alert('Error', 'No bank accounts found');
+      return false;
+    }
+
+    const accounts: BankAccount[] = JSON.parse(accountsJson);
+
+    const accountIndex = accounts.findIndex(account => account.id === accountId);
+
+    if (accountIndex === -1) {
+      Alert.alert('Error', `Bank account with ID ${accountId} not found`);
+      return false;
+    }
+
+    accounts[accountIndex].balance = accounts[accountIndex].balance + balanceAdjustment;
+
+    await AsyncStorage.setItem(BANK_ACCOUNTS_KEY, JSON.stringify(accounts));
+
+    return true;
+  } catch (error) {
+    Alert.alert('Error', 'Failed to update bank account balance');
+    console.error(error);
+    return false;
+  }
+};
+
 export const getBankAccounts = async () => {
-  return await AsyncStorage.getItem('bankAccounts');
+  return await AsyncStorage.getItem(BANK_ACCOUNTS_KEY);
 };
 
 
 export const saveCreditCards = async (updatedCards: CreditCard[]) => {
   try {
-    await AsyncStorage.setItem('creditCards', JSON.stringify(updatedCards));
+    await AsyncStorage.setItem(CREDIT_CARDS_KEY, JSON.stringify(updatedCards));
   } catch (error) {
     Alert.alert('Error', 'Failed to save credit cards');
     console.error(error);
@@ -153,8 +209,41 @@ export const saveCreditCards = async (updatedCards: CreditCard[]) => {
   return true;
 };
 
+export const updateCreditCardBalance = async (
+  cardId: string,
+  balanceAdjustment: number
+): Promise<boolean> => {
+  try {
+    const cardsJson = await AsyncStorage.getItem(CREDIT_CARDS_KEY);
+
+    if (!cardsJson) {
+      Alert.alert('Error', 'No credit card found');
+      return false;
+    }
+
+    const cards: CreditCard[] = JSON.parse(cardsJson);
+
+    const cardIndex = cards.findIndex(card => card.id === cardId);
+
+    if (cardIndex === -1) {
+      Alert.alert('Error', `Bank account with ID ${cardId} not found`);
+      return false;
+    }
+
+    cards[cardIndex].creditBalance = cards[cardIndex].creditBalance + balanceAdjustment;
+
+    await AsyncStorage.setItem(BANK_ACCOUNTS_KEY, JSON.stringify(cards));
+
+    return true;
+  } catch (error) {
+    Alert.alert('Error', 'Failed to update bank account balance');
+    console.error(error);
+    return false;
+  }
+};
+
 export const getCreditCards = async () => {
-  return await AsyncStorage.getItem('creditCards');
+  return await AsyncStorage.getItem(CREDIT_CARDS_KEY);
 };
 
 

@@ -20,6 +20,10 @@ export interface Transaction {
   date: string;
 }
 
+export interface TransactionInput extends Omit<Transaction, 'id' | 'date'> {
+  _skipBalanceUpdate?: boolean;
+}
+
 export interface Categories {
   expense: string[];
   income: string[];
@@ -37,12 +41,6 @@ export interface MonthData {
   income: number;
   expense: number;
   balance: number;
-}
-
-export interface BackupData {
-  transactions: Transaction[];
-  categories: Categories;
-  exportDate: string;
 }
 
 export type TabParamList = {
@@ -78,3 +76,21 @@ export type CreditCard = {
   creditLimit: number;
   creditBalance: number;
 };
+
+export interface BackupData {
+  transactions: Transaction[];
+  categories: Categories;
+  bankAccounts?: BankAccount[];  // Added
+  creditCards?: CreditCard[];    // Added
+  exportDate: string;
+}
+
+export interface SQLResultSet {
+  insertId?: number;
+  rowsAffected: number;
+  rows: {
+    length: number;
+    _array: any[];
+    item: (idx: number) => any;
+  };
+}
