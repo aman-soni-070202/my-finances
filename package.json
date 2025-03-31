@@ -10,8 +10,8 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate"
+    "generate-migration": "drizzle-kit generate",
+    "run-migration": "drizzle-kit migrate"
   },
   "jest": {
     "preset": "jest-expo"

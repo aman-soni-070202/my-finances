@@ -1,15 +1,21 @@
-// components/AccountBalanceContent.tsx
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  Dimensions
 } from 'react-native';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { getBankAccounts, getCreditCards } from '@/storage/sqliteService';
+import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { getBankAccounts, getCreditCards, updateBankAccountBalance, updateCreditCardBalance } from '@/storage/sqliteService';
 import { BankAccount, CreditCard } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -26,10 +32,39 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
   const [totalCredit, setTotalCredit] = useState(0);
   const [showBalances, setShowBalances] = useState(false);
 
+  // New state for edit drawer
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+  // Add a ref for the TextInput
+  const textInputRef = useRef<TextInput>(null);
+
   // Initial data load
   useEffect(() => {
     initialFetchAccountData();
   }, []);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    );
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
 
   // This will run when the screen comes into focus
   useFocusEffect(
@@ -69,26 +104,24 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
   const loadAccountData = async () => {
     // Fetch bank accounts from AsyncStorage
     const storedBankAccounts = await getBankAccounts();
-    // const parsedBankAccounts = storedBankAccounts ? JSON.parse(storedBankAccounts) : [];
     
     // Fetch credit cards from AsyncStorage
     const storedCreditCards = await getCreditCards();
-    // const parsedCreditCards = storedCreditCards ? JSON.parse(storedCreditCards) : [];
-    
+
     setBankAccounts(storedBankAccounts);
     setCreditCards(storedCreditCards);
-    
+
     // Calculate totals
     const bankTotal = storedBankAccounts.reduce(
       (sum: number, account: BankAccount) => sum + account.balance, 
       0
     );
-    
+
     const creditTotal = storedCreditCards.reduce(
-      (sum: number, card: CreditCard) => sum + card.creditBalance, 
+      (sum: number, card: CreditCard) => sum + card.creditBalance,
       0
     );
-    
+
     setTotalBalance(bankTotal);
     setTotalCredit(creditTotal);
   };
@@ -99,6 +132,21 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
 
   const formatCurrency = (amount: any) => {
     return `₹${parseFloat(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
+
+  // Handle clicking on a bank account
+  const handleBankAccountPress = (account: BankAccount) => {
+    navigation.navigate('AccountStatement', {
+      item: account,
+      itemType: 'bank'
+    });
+  };
+  
+  const handleCreditCardPress = (card: CreditCard) => {
+    navigation.navigate('AccountStatement', {
+      item: card,
+      itemType: 'credit'
+    });
   };
 
   if (isLoading) {
@@ -115,16 +163,16 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Accounts</Text>
         <TouchableOpacity onPress={toggleBalances} style={styles.visibilityButton}>
-          <MaterialIcons 
-            name={showBalances ? "visibility" : "visibility-off"} 
-            size={24} 
-            color="#0066cc" 
+          <MaterialIcons
+            name={showBalances ? "visibility" : "visibility-off"}
+            size={24}
+            color="#0066cc"
           />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.summaryContainer}>
-        <View style={[styles.summaryItem, {marginLeft: 15}]}>
+        <View style={[styles.summaryItem, { marginLeft: 15 }]}>
           <Text style={styles.summaryLabel}>Total Balance</Text>
           <View style={styles.valueContainer}>
             {isRefreshing ? (
@@ -136,7 +184,7 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
             )}
           </View>
         </View>
-        <View style={[styles.summaryItem, {marginLeft: 15, marginRight: 15}]}>
+        <View style={[styles.summaryItem, { marginLeft: 15, marginRight: 15 }]}>
           <Text style={styles.summaryLabel}>Available Credit</Text>
           <View style={styles.valueContainer}>
             {isRefreshing ? (
@@ -149,21 +197,25 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
           </View>
         </View>
       </View>
-      
+
       <ScrollView style={styles.accountsContainer}>
         {bankAccounts.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Bank Accounts</Text>
             {bankAccounts.map((account: BankAccount, index) => (
-              <View key={index} style={styles.accountCard}>
+              <TouchableOpacity
+                key={index}
+                style={styles.accountCard}
+                onPress={() => handleBankAccountPress(account)}
+              >
                 <View style={styles.accountIconContainer}>
                   <FontAwesome5 name="university" size={24} color="#0066cc" />
                 </View>
                 <View style={styles.accountDetails}>
                   <Text style={styles.accountName}>{account.name || 'Account'}</Text>
                   <Text style={styles.accountNumber}>
-                    {account.accountNumber 
-                      ? `••••${account.accountNumber.slice(-4)}` 
+                    {account.accountNumber
+                      ? `••••${account.accountNumber.slice(-4)}`
                       : 'No account number'}
                   </Text>
                 </View>
@@ -173,30 +225,34 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
                     <ActivityIndicator size="small" color="#0066cc" />
                   ) : (
                     <Text style={styles.balanceAmount}>
-                      {showBalances 
+                      {showBalances
                         ? formatCurrency(account.balance || 0)
                         : '••••••'}
                     </Text>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
-        
+
         {creditCards.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Credit Cards</Text>
             {creditCards.map((card: CreditCard, index) => (
-              <View key={index} style={styles.accountCard}>
+              <TouchableOpacity
+                key={index}
+                style={styles.accountCard}
+                onPress={() => handleCreditCardPress(card)}
+              >
                 <View style={styles.accountIconContainer}>
                   <FontAwesome5 name="credit-card" size={24} color="#9c27b0" />
                 </View>
                 <View style={styles.accountDetails}>
                   <Text style={styles.accountName}>{card.name || 'Credit Card'}</Text>
                   <Text style={styles.accountNumber}>
-                    {card.cardNumber 
-                      ? `••••${card.cardNumber.slice(-4)}` 
+                    {card.cardNumber
+                      ? `••••${card.cardNumber.slice(-4)}`
                       : 'No card number'}
                   </Text>
                 </View>
@@ -206,17 +262,17 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
                     <ActivityIndicator size="small" color="#9c27b0" />
                   ) : (
                     <Text style={styles.balanceAmount}>
-                      {showBalances 
+                      {showBalances
                         ? formatCurrency(card.creditBalance || 0)
                         : '••••••'}
                     </Text>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
-        
+
         {bankAccounts.length === 0 && creditCards.length === 0 && (
           <View style={styles.emptyState}>
             <FontAwesome5 name="piggy-bank" size={48} color="#cccccc" />
@@ -227,9 +283,12 @@ const AccountBalanceContent: React.FC<AccountBalanceContentProps> = ({ navigatio
           </View>
         )}
       </ScrollView>
+
     </View>
   );
 };
+
+const { height: screenHeight } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -373,18 +432,88 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
   },
-  refreshButton: {
+  // Drawer styles
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  drawerContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    // Set a max height that's less than the screen height
+    maxHeight: screenHeight * 0.7,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  drawerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  drawerBody: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 20,
+  },
+  editLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 10,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dddddd',
+    paddingBottom: 8,
+    marginBottom: 30,
+  },
+  currencySymbol: {
+    fontSize: 22,
+    color: '#333333',
+    marginRight: 5,
+  },
+  balanceInput: {
+    flex: 1,
+    fontSize: 22,
+    color: '#333333',
+    padding: 0,
+  },
+  saveButton: {
     backgroundColor: '#0066cc',
     paddingVertical: 15,
+    paddingHorizontal: 15,
+    height: 50,
+    width: 50,
     alignItems: 'center',
-    margin: 15,
-    borderRadius: 8,
+    borderRadius: 25,
   },
-  refreshButtonText: {
+  fullWidthSaveButton: {
+    backgroundColor: '#0066cc',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  saveButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
+  }
 });
 
 export default AccountBalanceContent;

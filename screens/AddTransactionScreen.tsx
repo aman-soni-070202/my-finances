@@ -87,7 +87,7 @@ const AddTransactionScreen: React.FC<AddTransactionScreenProps> = ({ navigation 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
   };
-  
+
   const handleSave = async () => {
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       Alert.alert('Invalid amount', 'Please enter a valid amount');
@@ -135,7 +135,7 @@ const AddTransactionScreen: React.FC<AddTransactionScreenProps> = ({ navigation 
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container]} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

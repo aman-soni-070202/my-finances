@@ -57,6 +57,10 @@ export type NavigationParamList = {
   Statistics: undefined;
   BankAccounts: undefined;
   CreditCards: undefined;
+  AccountStatement: {
+    item: BankAccount | CreditCard;
+    itemType: 'bank' | 'credit';
+  };
 };
 
 export type BankAccount = {

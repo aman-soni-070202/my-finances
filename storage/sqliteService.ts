@@ -2,8 +2,6 @@
 import * as SQLite from 'expo-sqlite';
 import { Transaction, Categories, MonthlyStats, MonthData, BackupData, BankAccount, CreditCard, TransactionInput } from '../types';
 import { Alert, Platform } from 'react-native';
-import { NewCategory, NewBankAccount, NewCreditCard, NewTransaction } from '@/db/schema';
-import { CategorySelect, BankAccountSelect, CreditCardSelect, TransactionSelect } from '@/db/schema';
 
 // Define SQLResultSet interface since it's not exported directly
 interface SQLResultSet {
@@ -281,7 +279,7 @@ export const addTransaction = async (transaction: TransactionInput): Promise<Tra
 };
 
 // Update an existing transaction
-export const updateTransaction = async (id: string, updatedData: Partial<Transaction>): Promise<Transaction | null> => {
+export const updateTransaction = async (updatedData: Transaction): Promise<Transaction | null> => {
   try {
     const db = ensureDbInitialized();
 
@@ -291,7 +289,7 @@ export const updateTransaction = async (id: string, updatedData: Partial<Transac
     }
 
     // First get the original transaction
-    const transaction = await getTransactionById(id);
+    const transaction = await getTransactionById(updatedData.id);
 
     if (!transaction) {
       return null;
@@ -377,7 +375,7 @@ export const updateTransaction = async (id: string, updatedData: Partial<Transac
     }
 
     if (updateFields.length > 0) {
-      updateValues['$id'] = (id);
+      updateValues['$id'] = (updatedData.id);
       await executeSqlWithParams(db, `
         UPDATE transactions 
         SET ${updateFields.join(', ')} 
@@ -386,7 +384,7 @@ export const updateTransaction = async (id: string, updatedData: Partial<Transac
     }
 
     // Get the updated transaction
-    return await getTransactionById(id);
+    return await getTransactionById(updatedData.id);
   } catch (error) {
     return handleError('Error updating transaction', error);
   }
@@ -441,6 +439,64 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
     };
   } catch (error) {
     return handleError('Error getting transaction', error);
+  }
+};
+
+// Get all transactions for a specific account or card
+export const getTransactionByAccountTypeAndId = async (
+  paymentMethodId: string, 
+  isCard: boolean
+): Promise<Transaction[]> => {
+  try {
+    const db = ensureDbInitialized();
+
+    const result: SQLResultSet[] = await executeSqlWithParams(db, `
+      SELECT t.*, 
+        CASE 
+          WHEN t.isCard=1 THEN c.name 
+          ELSE b.name 
+        END as paymentMethodName,
+        CASE 
+          WHEN t.isCard=1 THEN c.cardNumber 
+          ELSE b.accountNumber 
+        END as paymentMethodNumber,
+        CASE 
+          WHEN t.isCard=0 THEN b.bankName 
+          ELSE NULL 
+        END as paymentMethodBankName
+      FROM transactions t
+      LEFT JOIN bank_accounts b ON (t.paymentMethodId = b.id AND t.isCard = 0)
+      LEFT JOIN credit_cards c ON (t.paymentMethodId = c.id AND t.isCard = 1)
+      WHERE t.paymentMethodId = $paymentMethodId AND t.isCard = $isCard
+      ORDER BY t.date DESC
+    `, [{ $paymentMethodId: paymentMethodId, $isCard: isCard ? 1 : 0 }]);
+
+    const transactions: Transaction[] = [];
+
+    for (const row of result[0].rows) {
+      transactions.push({
+        id: row.id,
+        date: row.date,
+        amount: row.amount,
+        note: row.note,
+        category: row.category,
+        type: row.type as 'income' | 'expense',
+        paymentMethod: {
+          id: row.paymentMethodId,
+          name: row.paymentMethodName,
+          type: row.paymentMethodType,
+          isCard: !!row.isCard,
+          cardNumber: row.isCard ? row.paymentMethodNumber : undefined,
+          accountNumber: !row.isCard ? row.paymentMethodNumber : undefined,
+          bankName: row.paymentMethodBankName
+        }
+      });
+    }
+
+    return transactions;
+  } catch (error) {
+    handleError('Error getting payment method transactions', error);
+    return [];
   }
 };
 
