@@ -276,7 +276,7 @@ const TransactionDetailScreen: React.FC<TransactionDetailScreenProps> = ({ navig
                     <View style={styles.paymentModeRow}>
                       <View style={styles.accountIcon}>
                         <Ionicons
-                          name={getIconName(transaction.paymentMethod.type)}
+                          name={getIconName(transaction.paymentMethod.type || '')}
                           size={20}
                           color="#3498db"
                         />

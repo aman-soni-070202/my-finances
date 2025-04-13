@@ -1,19 +1,22 @@
 // App.tsx
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, Platform, AppState, AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './navigation/AppNavigator';
 
-// Note: You may not need these if you're fully switching to Drizzle
 import { initializeDatabase, closeDatabase } from '@/storage/sqliteService';
-// import { migrateDataToSQLite, isMigrationNeeded } from './utils/migrations';
 
 import * as SQLite from 'expo-sqlite';
 import { drizzle } from 'drizzle-orm/expo-sqlite';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from './drizzle/migrations';
+
+// Import SMS and notification services
+// import { startSmsMonitoring, stopSmsMonitoring, checkSmsMonitoringStatus } from '@/services/smsService';
+// import { setupNotifications } from '@/services/notificationService';
+// import { PERMISSIONS, requestMultiple, Permission } from 'react-native-permissions';
 
 // Initialize the database connection once at the app level
 const expo = SQLite.openDatabaseSync('db.db');
@@ -24,7 +27,69 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [customError, setCustomError] = useState<string | null>(null);
+  const appState = React.useRef(AppState.currentState);
+  const [appStateVisible, setAppStateVisible] = useState(appState.current);
 
+  // Initialize SMS monitoring and notification handling
+  // useEffect(() => {
+  //   if (!isReady) return;
+
+  //   const initializeSmsAndNotifications = async () => {
+  //     try {
+  //       // Setup notifications first
+  //       // const phoneNumber = await SmsRetriever.requestPhoneNumber();
+  //       await setupNotifications();
+        
+  //       // Request SMS permissions (Android only)
+  //       if (Platform.OS === 'android') {
+  //         const permissions: Permission[] = [
+  //           PERMISSIONS.ANDROID.READ_SMS,
+  //           PERMISSIONS.ANDROID.RECEIVE_SMS,
+  //         ];
+          
+  //         const result = await requestMultiple(permissions);
+  //         console.log('SMS Permissions:', result);
+  //       }
+        
+  //       // Start SMS monitoring service
+  //       await startSmsMonitoring();
+  //       console.log('SMS monitoring service started');
+  //     } catch (err) {
+  //       console.error('Failed to initialize SMS monitoring:', err);
+  //     }
+  //   };
+
+  //   initializeSmsAndNotifications();
+
+  //   // Set up AppState listener to restart service when app comes to foreground
+  //   const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+  //   return () => {
+  //     subscription.remove();
+  //     stopSmsMonitoring();
+  //   };
+  // }, [isReady]);
+
+  // App state change handler
+  // const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+  //   if (
+  //     appState.current.match(/inactive|background/) &&
+  //     nextAppState === 'active'
+  //   ) {
+  //     console.log('App has come to the foreground!');
+  //     // Check if SMS monitoring is running and restart if needed
+  //     const isRunning = await checkSmsMonitoringStatus();
+  //     if (!isRunning) {
+  //       console.log('Restarting SMS monitoring service');
+  //       await startSmsMonitoring();
+  //     }
+  //   }
+
+  //   appState.current = nextAppState;
+  //   setAppStateVisible(appState.current);
+  // };
+
+  // Original database initialization
   useEffect(() => {
     // Initialize storage on first launch
     const prepareApp = async () => {
@@ -62,11 +127,12 @@ export default function App() {
       const cleanUp = async () => {
         try {
           console.log("Cleaning up and closing database connection");
-          // Only call closeDatabase if you're using your custom service
           // await closeDatabase();
           
-          // For Drizzle, you may want to close the connection like this:
           expo.closeSync();
+          
+          // Also stop SMS monitoring
+          // await stopSmsMonitoring();
         } catch (err) {
           console.error('Error during cleanup:', err);
         }
@@ -76,7 +142,6 @@ export default function App() {
     };
   }, [success, error]); // Add dependencies to re-run when migration status changes
 
-  // If there's an error, show error screen
   if (error || customError) {
     return (
       <View style={styles.errorContainer}>
@@ -87,7 +152,6 @@ export default function App() {
     );
   }
 
-  // Show loading screen while initializing
   if (!isReady) {
     return (
       <View style={styles.loadingContainer}>

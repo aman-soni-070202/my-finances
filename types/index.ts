@@ -1,13 +1,64 @@
 // types/index.ts
 
+export type TabParamList = {
+  Home: undefined;
+  Balance: undefined;
+};
+
+export type NavigationParamList = {
+  TabHome: undefined;
+  Transactions: undefined;
+  AddTransaction: undefined;
+  TransactionDetail: { transaction: Transaction };
+  Settings: undefined;
+  Statistics: undefined;
+  BankAccounts: undefined;
+  CreditCards: undefined;
+  AccountStatement: {
+    item: BankAccount | CreditCard;
+    itemType: 'bank' | 'credit';
+  };
+};
+
+export interface PaymentInfo {
+  type: 'credit' | 'debit' | null;
+  amount: number | null;
+  balance: number | null;
+  account: string | null;
+  merchant: string | null;
+  rawMessage: string;
+  timestamp: string;
+}
+
 export interface PaymentMethod {
   id: string;
   name: string;
-  type: string;
+  type?: string;
   isCard?: boolean;
   cardNumber?: string;
   accountNumber?: string;
   bankName?: string;
+}
+
+export type BankAccount = {
+  id: string;
+  name: string;
+  accountNumber: string;
+  bankName: string;
+  balance: number;
+  type: 'checking' | 'savings' | 'credit' | 'investment';
+};
+
+export type CreditCard = {
+  id: string;
+  name: string;
+  cardNumber: string;
+  creditLimit: number;
+  creditBalance: number;
+};
+
+export interface TaskDataArguments {
+  delay: number;
 }
 
 export interface Transaction {
@@ -42,44 +93,6 @@ export interface MonthData {
   expense: number;
   balance: number;
 }
-
-export type TabParamList = {
-  Home: undefined;
-  Balance: undefined;
-};
-
-export type NavigationParamList = {
-  TabHome: undefined;
-  Transactions: undefined;
-  AddTransaction: undefined;
-  TransactionDetail: { transaction: Transaction };
-  Settings: undefined;
-  Statistics: undefined;
-  BankAccounts: undefined;
-  CreditCards: undefined;
-  AccountStatement: {
-    item: BankAccount | CreditCard;
-    itemType: 'bank' | 'credit';
-  };
-};
-
-export type BankAccount = {
-  id: string;
-  name: string;
-  accountNumber: string;
-  bankName: string;
-  balance: number;
-  type: 'checking' | 'savings' | 'credit' | 'investment';
-};
-
-
-export type CreditCard = {
-  id: string;
-  name: string;
-  cardNumber: string;
-  creditLimit: number;
-  creditBalance: number;
-};
 
 export interface BackupData {
   transactions: Transaction[];
