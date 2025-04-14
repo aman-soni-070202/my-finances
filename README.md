@@ -1,50 +1,95 @@
-# Welcome to your Expo app 👋
+# My Finance
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native mobile application built with Expo that helps you track your finances by automatically monitoring SMS payment notifications and managing your transactions.
 
-## Get started
+## Features
 
-1. Install dependencies
+- 📱 SMS Payment Tracking: Automatically detects and processes payment-related SMS messages
+- 💳 Transaction Management
+- 🔐 Secure Local Storage using SQLite
+- 📊 Modern and Clean UI
+- 🔄 Background SMS Processing
+- 📱 Cross-Platform Support (Android/iOS)
 
-   ```bash
-   npm install
-   ```
+## Prerequisites
 
-2. Start the app
+Before you begin, ensure you have the following installed:
+- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [Expo CLI](https://docs.expo.dev/get-started/installation/)
+- [Git](https://git-scm.com/)
 
-   ```bash
-    npx expo start
-   ```
+## Installation
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+1. Clone the repository:
 ```bash
-npm run reset-project
+git clone <repository-url>
+cd my-finance
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
 
-## Learn more
+3. Start the Expo development server:
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Environment Setup
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Android
+- Enable SMS permissions on your device when prompted
+- Grant necessary permissions for background SMS processing
 
-## Join the community
+### iOS
+- Note: SMS listening functionality is currently only available on Android devices
 
-Join our community of developers creating universal apps.
+## Tech Stack
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [React Native](https://reactnative.dev/)
+- [Expo](https://expo.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- [SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/) for local database
+- [Drizzle ORM](https://orm.drizzle.team/) for database management
+- [react-native-android-sms-listener](https://www.npmjs.com/package/react-native-android-sms-listener) for SMS processing
+
+## Project Structure
+
+```
+my-finance/
+├── App.tsx              # Main application entry point
+├── navigation/          # Navigation configuration
+├── components/         # Reusable UI components
+├── services/          # Business logic and services
+├── storage/           # Database and storage related code
+├── types/            # TypeScript type definitions
+└── drizzle/          # Database migrations and schema
+```
+
+## Database Migrations
+
+The app uses Drizzle ORM for database management. Migrations are automatically handled when the app starts.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Thanks to the Expo team for the amazing framework
+- All the contributors who have helped with the project
+
+## Support
+
+For support, please open an issue in the repository or contact the maintainers.
